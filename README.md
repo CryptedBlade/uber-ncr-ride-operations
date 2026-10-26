@@ -116,7 +116,7 @@ Evening Share % =
 ## Repository structure
 
 ```
-Uber_Data_Analytics/
+uber-ncr-ride-operations/
 ├── README.md
 ├── ncr_ride_bookings.csv          raw dataset
 ├── uber_ride_analysis.ipynb       cleaning, audit, exploration, exports
