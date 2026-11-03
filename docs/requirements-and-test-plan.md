@@ -84,4 +84,4 @@ Every test below passes, and every headline figure matches the Python analysis a
 ## 11. UAT sign-off
 - [x] All tests passed (T1 to T18)
 - [x] Known limits listed (synthetic data; Insights text is static; revenue at risk is an estimate)
-- Signed off by: [Harshvardhan Singh], [25/10/2026]
+- Signed off by: Harshvardhan Singh, 03/11/2026
