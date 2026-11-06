@@ -24,7 +24,7 @@
 10. [Cleaning and transformation approach](#10-cleaning-and-transformation-approach)
 11. [Data model](#11-data-model)
 12. [Power BI build](#12-power-bi-build)
-13. [Requirements and testing](#13-requirements-and-testing)
+13. [Requirements and user acceptance testing (UAT)](#13-requirements-and-user-acceptance-testing-uat)
 14. [Validation and reconciliation](#14-validation-and-reconciliation)
 15. [Challenges and lessons learned](#15-challenges-and-lessons-learned)
 16. [Limitations and caveats](#16-limitations-and-caveats)
@@ -47,9 +47,9 @@
 | **Data cleaning** | Python (pandas) in `uber_ride_analysis.ipynb`: IDs, dates, repeated booking IDs, outcome flags, audit |
 | **Model** | Power BI star schema: one `Rides` fact table (150,000 rows, 27 columns) and three dimensions (`DimDate`, `DimTime`, `DimVehicle`) |
 | **Dashboard** | 7 pages: Home, Overview, Demand, Cancellations, Revenue, Vehicles, Insights |
-| **Measures** | DAX measures in one `_Measures` table (39 used directly by the visuals) |
+| **Measures** | 40+ DAX measures in one `_Measures` table |
 | **Interactivity** | Fleet selector (bookmarks), synced date and vehicle slicers, Month/Quarter field parameter, data-driven colour rules |
-| **Quality checks** | 18 test cases (all passed) plus `tests/verify_figures.py`, which recomputes 28 figures from the data |
+| **Quality checks** | 18 UAT test cases traced to the requirements (all passed) plus `tests/verify_figures.py`, which recomputes 28 figures from the data |
 | **Tools** | Python (pandas, NumPy, matplotlib, seaborn), Jupyter, Power BI Desktop, Power Query, DAX |
 
 ---
@@ -72,6 +72,18 @@
 | 3 | When is demand highest and lowest? | Demand |
 | 4 | Do vehicle types differ in performance? | Vehicles |
 | 5 | How much revenue is at risk from lost bookings? | Overview, Cancellations, Insights |
+
+**Business problem.** Of 150,000 bookings in 2024, 57,000 (38%) did not become completed rides. The operations team cannot act on that until it can see *where* bookings are lost, *why*, and *what it costs*.
+
+**Decisions the dashboard supports:**
+
+| Decision | Evidence on the dashboard | Page |
+|---|---|---|
+| Where to focus loss reduction first | Drivers cancelled 27,000 bookings (18.0%); customers 10,500 (7.0%) | Cancellations |
+| When to plan driver supply | Peak at 18:00, 9.4x the quietest hour; 41.3% of bookings fall between 15:00 and 20:59 | Demand |
+| What to fix at booking | Wrong address is the largest customer-controlled reason (2,362 rides) | Cancellations |
+| How much the loss costs | About ₹24.4M at risk (estimate), against ₹47.26M earned | Overview, Cancellations |
+| Whether vehicle-specific fixes are needed | Completion is 61.4% to 62.6% for all seven vehicle types | Vehicles |
 
 ---
 
@@ -294,7 +306,7 @@ flowchart TD
 
 - **Customers almost never repeat:** 1,206 of 148,788 customers booked more than once, so there is no customer-segment analysis.
 - **Ratings:** completed rides have customer ratings averaging 4.40 and driver ratings averaging 4.23, all between 3.0 and 5.0.
-- **Wait times:** average VTAT is 8.5 and average CTAT is 29.1 for every vehicle type to within a few tenths. The dataset does not define either measure, so they are shown by name only.
+- **Wait times:** average VTAT is 8.5 and average CTAT is 30.0 for completed rides (29.1 across all rides that have a value), and both are the same for every vehicle type to within a few tenths. The dataset does not define either measure, so they are shown by name only.
 
 ### 5.7 Fares and distance
 
@@ -473,7 +485,7 @@ erDiagram
 
 ### DAX measure reference
 
-The 39 measures used directly by the dashboard's visuals, grouped by purpose. The formulas are in `dashboards/Uber_NCR_Ride_Operations.pbix`.
+The main measures behind the dashboard's visuals, grouped by purpose (the model holds more than 40 in total). The formulas are in `dashboards/Uber_NCR_Ride_Operations.pbix`.
 
 | Group | Measures |
 |---|---|
@@ -484,7 +496,7 @@ The 39 measures used directly by the dashboard's visuals, grouped by purpose. Th
 | Revenue | Revenue, Revenue (₹M), Revenue Share %, Revenue Previous Month, Revenue MoM %, Avg Fare, Median Fare, Fare Band Rides |
 | Payments | Payment Share %, Digital Share % |
 | Service quality | Avg VTAT, Avg CTAT, Avg Customer Rating, Avg Driver Rating |
-| Interface and colour | Showing, Loss Color, Peak Hour Color, Payment Color, Customer Reason Color, Driver Reason Color |
+| Interface and colour | Showing, Loss Color, Peak Hour Color, Top Month Color, Top Slot Color, Payment Color, Customer Reason Color, Driver Reason Color |
 
 Examples of the DAX behind the dashboard:
 
@@ -511,7 +523,7 @@ Evening Share % =
 
 ---
 
-## 13. Requirements and testing
+## 13. Requirements and user acceptance testing (UAT)
 
 The full document is in [`docs/requirements-and-test-plan.md`](docs/requirements-and-test-plan.md). It was written **after the build**, with a fictional stakeholder, so it documents and verifies the dashboard rather than driving its design.
 
@@ -524,6 +536,47 @@ The full document is in [`docs/requirements-and-test-plan.md`](docs/requirements
 - **FR5:** Vehicles shows all 7 types side by side; Insights states findings, recommendations and data notes.
 - **FR6:** Home and Insights state that the data is probably synthetic.
 - **NFR:** pages load without visible delay; data covers 1 January to 30 December 2024.
+
+### Requirements traceability
+
+Each requirement is linked to the tests that check it.
+
+| Requirement | Checked by | Status |
+|---|---|---|
+| **FR1** 7 pages in a fixed order, navigator on every page | T13, T17 | Passed |
+| **FR2** Date and vehicle slicers synced across four pages | T14 | Passed |
+| **FR3** KPI cards show the headline figures on Home and Overview | T1, T2, T3, T5, T6 | Passed |
+| **FR4** Home fleet buttons filter Home and update the "Showing" label | T15, T16 | Passed |
+| **FR5** Vehicles shows all 7 types; Insights states findings and notes | T9, T11 | Passed |
+| **FR6** Home and Insights state the data is probably synthetic | T24 | Planned, not yet run |
+| **NFR** Pages load without visible delay | T18 | Passed (an observation, not a stopwatch measurement) |
+| **NFR** Data covers 1 January to 30 December 2024 | T25 | Planned, not yet run |
+
+### User acceptance testing (UAT)
+
+UAT asks a different question from a figure check: *can the intended user do the job the dashboard exists for?* The scenarios below use the two practice personas from section 2. Each scenario passes only if every test behind it passes.
+
+| # | Scenario | Persona | Acceptance criteria | Tests | Result |
+|---|---|---|---|---|---|
+| UAT-1 | See how many bookings become rides | Operations Manager | Home and Overview show 150,000 bookings, 62.0% completion and ₹47.26M revenue; the funnel ends at 93.0K | T1, T2, T3, T5 | Pass |
+| UAT-2 | Find out who causes cancellations | Operations Manager | Driver rate 18.0%, customer rate 7.0%, driver share 72% | T8 | Pass |
+| UAT-3 | Know when to add drivers | Operations Manager | Peak hour 18:00 and 9.4x the quietest hour | T7 | Pass |
+| UAT-4 | See what the loss costs | Operations Manager | 57K lost bookings and ₹24.4M revenue at risk | T6 | Pass |
+| UAT-5 | Compare vehicle types | Analyst | Vehicle bookings add up to 150,000; completion 61.4% to 62.6% | T9 | Pass |
+| UAT-6 | Pick one vehicle, then reset | Operations Manager | Home cards and the "Showing" label change for each vehicle; *All vehicles* restores the full figures | T15, T16 | Pass |
+| UAT-7 | Move around and filter | Analyst | Seven pages in order, a working navigator from every page, and a date slicer that matches on all four filtered pages | T13, T14, T17 | Pass |
+| UAT-8 | Trust the figures | Analyst | Statuses add up; UPI and digital shares are right; Insights figures match the data; repeated IDs are handled | T4, T10, T11, T12 | Pass |
+| UAT-9 | Open pages without waiting | Analyst | Each page loads in under a second | T18 | Pass |
+
+**Outcome:** 9 of 9 scenarios and 18 of 18 test cases passed, and two documentation defects were found and corrected (listed below).
+
+| UAT summary | |
+|---|---|
+| Tested by | Harshvardhan Singh (author) |
+| Stakeholder | Fictional (Operations Manager and Analyst personas) |
+| Method | Figure checks recomputed from the data; one inspection of the report file; five checks run by hand in Power BI Desktop |
+| Decision | Accepted for portfolio use |
+| Limit | Run by the author with fictional stakeholders, so it demonstrates method, not real stakeholder sign-off |
 
 ### Test results
 
@@ -554,6 +607,20 @@ The full document is in [`docs/requirements-and-test-plan.md`](docs/requirements
 
 1. **Wording on Insights (fixed).** The data-notes box said "1,233 booking IDs repeat." The data shows **1,224 IDs repeat across 1,233 extra rides**, and the wording was corrected.
 2. **Requirements did not match the build (fixed).** The first draft of the requirements had the page order wrong, said filters apply to every page, described the vehicle selector as filtering every visual, expected a "72%" card on the Cancellations page, and expected no duplicate booking IDs. All were corrected to match the dashboard as built.
+
+### Planned additional tests (not yet run)
+
+These are written but have **not been run**, so they are not counted in the 18.
+
+| ID | What will be checked | Expected |
+|---|---|---|
+| T19 | Vehicle filter flows through four pages (Auto only) | Overview, Demand, Cancellations and Revenue show Auto's figures (37,419 bookings, 61.9% completion, ₹11.73M); Home, Vehicles and Insights are unchanged |
+| T20 | Date range flows through four pages (1 to 31 January) | 12,861 bookings, 61.8% completion, ₹4.00M revenue |
+| T21 | Both filters together (Bike, 1 January to 31 March) | 5,706 bookings, 63.1% completion, ₹1.83M revenue |
+| T22 | Edge case: a single day (1 January) | 414 bookings, 60.6% completion; no error, blank or 0K card |
+| T23 | Home fleet selector, every vehicle | Each vehicle's bookings, completion, revenue and lost bookings match the data |
+| T24 | Home and Insights state the data is probably synthetic (FR6) | The notice is visible on both pages |
+| T25 | Date slicer range (NFR) | Starts 1 January 2024 and ends 30 December 2024 |
 
 ---
 
@@ -632,7 +699,7 @@ uber-ncr-ride-operations/
 │   └── verify_figures.py           recomputes 28 dashboard figures from the data
 └── docs/
     ├── requirements-and-test-plan.md   requirements, KPI definitions and 18 test cases
-    ├── uber_dashboard.pdf              all pages in one file
+    ├── uber_data_analytics.pdf         all pages in one file
     └── screenshots/                    one image per dashboard page
 ```
 
