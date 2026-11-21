@@ -699,7 +699,7 @@ uber-ncr-ride-operations/
 │   └── verify_figures.py           recomputes 28 dashboard figures from the data
 └── docs/
     ├── requirements-and-test-plan.md   requirements, KPI definitions and 18 test cases
-    ├── uber_data_analytics.pdf         all pages in one file
+    ├── uber_dashboard.pdf         all pages in one file
     └── screenshots/                    one image per dashboard page
 ```
 
